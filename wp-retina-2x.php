@@ -58,6 +58,9 @@ if ( is_admin() ) {
 }
 
 require( 'wr2x_responsive.php' );
+require( 'vendor/autoload.php' );
+
+use DiDom\Document;
 
 // if ( get_option( "ignore_mobile" ) && !class_exists( 'Mobile_Detect' ) )
 // 	require( 'inc/Mobile_Detect.php');
@@ -140,18 +143,12 @@ function wr2x_picture_rewrite( $buffer ) {
 	global $wr2x_admin;
 	if ( !isset( $buffer ) || trim( $buffer ) === '' )
 		return $buffer;
-	if ( !function_exists( "str_get_html" ) )
-		require( 'inc/simple_html_dom.php' );
 
 	$lazysize = get_option( "wr2x_picturefill_lazysizes" ) && $wr2x_admin->is_pro();
 	$killsrc = !get_option( "wr2x_picturefill_keep_src" );
 	$nodes_count = 0;
 	$nodes_replaced = 0;
-	$html = str_get_html( $buffer );
-	if ( !$html ) {
-		wr2x_log( "The HTML buffer is null, another plugin might block the process." );
-		return $buffer;
-	}
+	$html = new Document( $buffer );
 
 	// IMG TAGS
 	foreach( $html->find( 'img' ) as $element ) {
@@ -181,7 +178,6 @@ function wr2x_picture_rewrite( $buffer ) {
 					if ( $killsrc )
 						$element->src = null;
 					$to = $element;
-					$buffer = str_replace( trim( $from, "</> "), trim( $to, "</> " ), $buffer );
 					wr2x_log( "The img tag '$from' was rewritten to '$to'" );
 					$nodes_replaced++;
 				}
@@ -215,7 +211,6 @@ function wr2x_picture_rewrite( $buffer ) {
 					$element->src = wr2x_cdn_this( $img_src );
 				}
 				$to = $element;
-				$buffer = str_replace( trim( $from, "</> "), trim( $to, "</> " ), $buffer );
 				wr2x_log( "The img tag '$from' was rewritten to '$to'" );
 				$nodes_replaced++;
 			}
@@ -225,6 +220,8 @@ function wr2x_picture_rewrite( $buffer ) {
 		}
 	}
 	wr2x_log( "$nodes_replaced/$nodes_count img tags were replaced." );
+
+	$buffer = $html->getDocument()->saveHTML();
 
 	// INLINE CSS BACKGROUND
 	if ( get_option( 'wr2x_picturefill_css_background', false ) && $wr2x_admin->is_pro() ) {
